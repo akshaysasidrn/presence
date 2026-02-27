@@ -18,11 +18,32 @@ Or build it and sit with the binary for a while:
 go build -o presence && ./presence
 ```
 
+## Options
+
+```
+--random    pick a random quote instead of the daily one
+--quotes    path to a custom quotes JSON file
+--api       fetch a quote from the Stoic Quote API
+--version   print version and exit
+```
+
+Custom quotes file format:
+
+```json
+[
+  {"text": "Your quote here.", "author": "You"}
+]
+```
+
 ## Controls
 
 - **Type** — that's it, that's the app
 - **Backspace** — for when the ego intervenes
-- **Esc / Ctrl+C** — return to the world of distractions
+- **Tab / Esc / Ctrl+C** — return to the world of distractions
+
+## Terminal support
+
+Works on both light and dark terminals. Colors adapt automatically.
 
 ## License
 
