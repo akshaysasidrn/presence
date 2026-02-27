@@ -17,7 +17,7 @@ const version = "0.2.0"
 
 var (
 	correctStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1A1A1A", Dark: "#FAFAFA"})
-	wrongStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC3333", Dark: "#FF4444"})
+	wrongStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC3333", Dark: "#FF4444"}).Background(lipgloss.AdaptiveColor{Light: "#FFD9D9", Dark: "#442222"})
 	cursorStyle  = lipgloss.NewStyle().Underline(true).Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#888888"})
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#AAAAAA", Dark: "#555555"})
 	faintStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CCCCCC", Dark: "#333333"})
