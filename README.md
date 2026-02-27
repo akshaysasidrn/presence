@@ -43,25 +43,6 @@ Custom quotes file format:
 - **Backspace** — for when the ego intervenes
 - **Tab / Esc / Ctrl+C** — return to the world of distractions
 
-## Start your day with a quote
-
-Build and place the binary somewhere on your `$PATH`:
-
-```bash
-go build -o presence && mv presence /usr/local/bin/
-```
-
-Then add this to your `~/.zshrc` (or `~/.bashrc`):
-
-```bash
-# only run in interactive terminals, not inside editors/IDEs
-if [[ $- == *i* && -z "$VSCODE_PID" && -z "$INTELLIJ_ENVIRONMENT_READER" ]]; then
-  presence
-fi
-```
-
-Every new terminal opens with a fresh quote to type through before you start your day.
-
 ## License
 
 MIT — be present with it however you like.
