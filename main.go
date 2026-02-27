@@ -208,7 +208,7 @@ func splitStyledSegments(styled string, count int) []string {
 }
 
 func main() {
-	randomFlag := flag.Bool("random", false, "pick a random quote")
+	dailyFlag := flag.Bool("daily", false, "pick the same quote for the whole day")
 	quotesFlag := flag.String("quotes", "", "path to a custom quotes JSON file")
 	apiFlag := flag.Bool("api", false, "fetch a quote from the Stoic Quote API")
 	versionFlag := flag.Bool("version", false, "print version and exit")
@@ -219,7 +219,7 @@ func main() {
 		return
 	}
 
-	// Select quote: --quotes > --api > --random > daily
+	// Select quote: --api > --quotes/default, then --daily or random
 	var q quote
 	if *apiFlag {
 		if fetched, ok := fetchFromAPI(); ok {
@@ -227,7 +227,7 @@ func main() {
 		} else {
 			// Fall back to embedded
 			quotes, _ := loadEmbeddedQuotes()
-			q = dailyQuote(quotes)
+			q = randomQuote(quotes)
 		}
 	} else {
 		var quotes []quote
@@ -241,10 +241,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		if *randomFlag {
-			q = randomQuote(quotes)
-		} else {
+		if *dailyFlag {
 			q = dailyQuote(quotes)
+		} else {
+			q = randomQuote(quotes)
 		}
 	}
 
