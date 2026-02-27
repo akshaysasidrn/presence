@@ -26,6 +26,7 @@ go build -o presence && ./presence
 --random    pick a random quote instead of the daily one
 --quotes    path to a custom quotes JSON file
 --api       fetch a quote from an API endpoint (pass URL)
+--fleeting  dissolve the quote into dust after completion
 --version   print version and exit
 ```
 
