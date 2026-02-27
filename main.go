@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -19,8 +20,16 @@ var (
 	wrongStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CC3333", Dark: "#FF4444"})
 	cursorStyle  = lipgloss.NewStyle().Underline(true).Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#888888"})
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#AAAAAA", Dark: "#555555"})
+	faintStyle   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#CCCCCC", Dark: "#333333"})
 )
 
+var brailleStages = [3][]rune{
+	[]rune("⣿⣾⣽⣻⣷⣯⣟⡿⢿"),
+	[]rune("⠂⠃⠄⠅⠈⠐⠠⡀⢀"),
+	[]rune("⠁⠂⠄⡀⠀"),
+}
+
+type dissolveTickMsg struct{}
 type doneMsg struct{}
 
 type keystroke struct {
@@ -29,18 +38,22 @@ type keystroke struct {
 }
 
 type model struct {
-	quote  []rune
-	author string
-	typed  []keystroke
-	done   bool
-	width  int
+	quote         []rune
+	author        string
+	typed         []keystroke
+	done          bool
+	width         int
+	fleeting      bool
+	dissolveFrame int
+	dissolveRank  []int
 }
 
-func initialModel(q quote) model {
+func initialModel(q quote, fleeting bool) model {
 	return model{
-		quote:  []rune(q.Text),
-		author: q.Author,
-		width:  80,
+		quote:    []rune(q.Text),
+		author:   q.Author,
+		width:    80,
+		fleeting: fleeting,
 	}
 }
 
@@ -92,11 +105,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check completion
 		if len(m.typed) >= len(m.quote) {
 			m.done = true
+			if m.fleeting {
+				attrRunes := []rune("— " + m.author)
+				totalLen := len(m.quote) + len(attrRunes)
+				perm := rand.Perm(totalLen)
+				m.dissolveRank = make([]int, totalLen)
+				for i, v := range perm {
+					m.dissolveRank[v] = i
+				}
+				m.dissolveFrame = 1
+				return m, tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+					return dissolveTickMsg{}
+				})
+			}
 			return m, tea.Tick(800*time.Millisecond, func(t time.Time) tea.Msg {
 				return doneMsg{}
 			})
 		}
 		return m, nil
+
+	case dissolveTickMsg:
+		m.dissolveFrame++
+		if m.dissolveFrame > 5 {
+			return m, tea.Quit
+		}
+		return m, tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+			return dissolveTickMsg{}
+		})
 
 	case doneMsg:
 		return m, tea.Quit
@@ -108,6 +143,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if m.width == 0 {
 		return ""
+	}
+
+	if m.dissolveFrame > 0 {
+		return m.viewDissolve()
 	}
 
 	padding := 4
@@ -140,6 +179,72 @@ func (m model) View() string {
 	attribution := dimStyle.Render("— " + m.author)
 
 	return fmt.Sprintf("\n%s%s\n%s%s\n\n", pad, wrapped, pad, attribution)
+}
+
+func (m model) viewDissolve() string {
+	padding := 4
+	maxWidth := m.width - padding*2
+	if maxWidth < 20 {
+		maxWidth = 20
+	}
+
+	attrRunes := []rune("— " + m.author)
+	totalLen := len(m.quote) + len(attrRunes)
+	groupSize := totalLen / 3
+	if groupSize < 1 {
+		groupSize = 1
+	}
+
+	// Build styled quote
+	var styled strings.Builder
+	for i, r := range m.quote {
+		styled.WriteString(m.dissolveChar(i, groupSize, r))
+	}
+
+	wrapped := softWrap(styled.String(), m.quote, maxWidth)
+
+	// Build styled attribution
+	var attrStyled strings.Builder
+	for i, r := range attrRunes {
+		attrStyled.WriteString(m.dissolveChar(len(m.quote)+i, groupSize, r))
+	}
+
+	pad := strings.Repeat(" ", padding)
+	return fmt.Sprintf("\n%s%s\n%s%s\n\n", pad, wrapped, pad, attrStyled.String())
+}
+
+func (m model) dissolveChar(idx, groupSize int, r rune) string {
+	if r == ' ' || r == '\n' {
+		return string(r)
+	}
+
+	rank := m.dissolveRank[idx]
+	group := rank / groupSize
+	if group > 2 {
+		group = 2
+	}
+	startFrame := group + 1
+	elapsed := m.dissolveFrame - startFrame + 1
+
+	if elapsed <= 0 {
+		return correctStyle.Render(string(r))
+	}
+
+	rng := rand.New(rand.NewSource(int64(idx*997 + m.dissolveFrame*31)))
+
+	switch elapsed {
+	case 1:
+		pool := brailleStages[0]
+		return dimStyle.Render(string(pool[rng.Intn(len(pool))]))
+	case 2:
+		pool := brailleStages[1]
+		return dimStyle.Render(string(pool[rng.Intn(len(pool))]))
+	case 3:
+		pool := brailleStages[2]
+		return faintStyle.Render(string(pool[rng.Intn(len(pool))]))
+	default:
+		return " "
+	}
 }
 
 // softWrap wraps styled text at word boundaries based on the raw rune widths.
@@ -209,6 +314,7 @@ func splitStyledSegments(styled string, count int) []string {
 
 func main() {
 	dailyFlag := flag.Bool("daily", false, "pick the same quote for the whole day")
+	fleetingFlag := flag.Bool("fleeting", false, "dissolve the quote into dust after completion")
 	quotesFlag := flag.String("quotes", "", "path to a custom quotes JSON file")
 	apiFlag := flag.String("api", "", "fetch a quote from an API endpoint (pass URL)")
 	versionFlag := flag.Bool("version", false, "print version and exit")
@@ -248,7 +354,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(initialModel(q))
+	p := tea.NewProgram(initialModel(q, *fleetingFlag))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
