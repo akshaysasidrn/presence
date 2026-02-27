@@ -210,7 +210,7 @@ func splitStyledSegments(styled string, count int) []string {
 func main() {
 	dailyFlag := flag.Bool("daily", false, "pick the same quote for the whole day")
 	quotesFlag := flag.String("quotes", "", "path to a custom quotes JSON file")
-	apiFlag := flag.Bool("api", false, "fetch a quote from the Stoic Quote API")
+	apiFlag := flag.String("api", "", "fetch a quote from an API endpoint (pass URL)")
 	versionFlag := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -221,8 +221,8 @@ func main() {
 
 	// Select quote: --api > --quotes/default, then --daily or random
 	var q quote
-	if *apiFlag {
-		if fetched, ok := fetchFromAPI(); ok {
+	if *apiFlag != "" {
+		if fetched, ok := fetchFromAPI(*apiFlag); ok {
 			q = fetched
 		} else {
 			// Fall back to embedded

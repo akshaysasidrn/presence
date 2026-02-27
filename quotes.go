@@ -92,11 +92,11 @@ type apiResponse struct {
 	} `json:"data"`
 }
 
-// fetchFromAPI fetches a quote from the Stoic Quote API.
+// fetchFromAPI fetches a quote from the given API endpoint.
 // Returns (quote, false) on any error — caller should fall back to embedded quotes.
-func fetchFromAPI() (quote, bool) {
+func fetchFromAPI(url string) (quote, bool) {
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("https://stoic.tekloon.net/stoic-quote")
+	resp, err := client.Get(url)
 	if err != nil {
 		return quote{}, false
 	}
