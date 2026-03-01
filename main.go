@@ -40,28 +40,22 @@ type keystroke struct {
 }
 
 type model struct {
-	quote             []rune
-	author            string
-	typed             []keystroke
-	done              bool
-	width             int
-	fleeting           bool
-	dissolveFrame     int
-	dissolveRank      []int
-	statsEnabled      bool
-	startTime         time.Time
-	endTime           time.Time
-	totalKeystrokes   int
-	correctKeystrokes int
+	quote         []rune
+	author        string
+	typed         []keystroke
+	done          bool
+	width         int
+	fleeting      bool
+	dissolveFrame int
+	dissolveRank  []int
 }
 
-func initialModel(q quote, fleeting, stats bool) model {
+func initialModel(q quote, fleeting bool) model {
 	return model{
-		quote:        []rune(q.Text),
-		author:       q.Author,
-		width:        80,
-		fleeting:     fleeting,
-		statsEnabled: stats,
+		quote:    []rune(q.Text),
+		author:   q.Author,
+		width:    80,
+		fleeting: fleeting,
 	}
 }
 
@@ -84,49 +78,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC, tea.KeyEsc, tea.KeyTab:
 			return m, tea.Quit
 
-		case tea.KeyBackspace:
-			if len(m.typed) > 0 {
-				m.typed = m.typed[:len(m.typed)-1]
-			}
-			return m, nil
-
 		case tea.KeyEnter:
 			pos := len(m.typed)
 			if pos < len(m.quote) && m.quote[pos] == '\n' {
-				if m.startTime.IsZero() {
-					m.startTime = time.Now()
-				}
-				m.totalKeystrokes++
-				m.correctKeystrokes++
 				m.typed = append(m.typed, keystroke{'\n', true})
 			}
 
 		case tea.KeySpace:
 			pos := len(m.typed)
 			if pos < len(m.quote) {
-				if m.startTime.IsZero() {
-					m.startTime = time.Now()
-				}
 				correct := m.quote[pos] == ' '
-				m.totalKeystrokes++
-				if correct {
-					m.correctKeystrokes++
-				}
 				m.typed = append(m.typed, keystroke{' ', correct})
 			}
 
 		case tea.KeyRunes:
 			pos := len(m.typed)
 			if pos < len(m.quote) {
-				if m.startTime.IsZero() {
-					m.startTime = time.Now()
-				}
 				ch := msg.Runes[0]
 				correct := ch == m.quote[pos]
-				m.totalKeystrokes++
-				if correct {
-					m.correctKeystrokes++
-				}
 				m.typed = append(m.typed, keystroke{ch, correct})
 			}
 		}
@@ -134,7 +103,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check completion
 		if len(m.typed) >= len(m.quote) {
 			m.done = true
-			m.endTime = time.Now()
 			if m.fleeting {
 				attrRunes := []rune("— " + m.author)
 				totalLen := len(m.quote) + len(attrRunes)
@@ -144,7 +112,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.dissolveRank[v] = i
 				}
 				m.dissolveFrame = 1
-				return m, tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
+				return m, tea.Tick(300*time.Millisecond, func(t time.Time) tea.Msg {
 					return dissolveTickMsg{}
 				})
 			}
@@ -156,12 +124,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case dissolveTickMsg:
 		m.dissolveFrame++
-		if m.dissolveFrame > 5 {
-			if m.statsEnabled {
-				return m, tea.Tick(800*time.Millisecond, func(t time.Time) tea.Msg {
-					return doneMsg{}
-				})
-			}
+		if m.dissolveFrame > 7 {
 			return m, tea.Quit
 		}
 		return m, tea.Tick(200*time.Millisecond, func(t time.Time) tea.Msg {
@@ -217,11 +180,6 @@ func (m model) View() string {
 		attribution = correctStyle.Render(attrText)
 	}
 
-	if m.done && m.statsEnabled {
-		stats := m.statsLine()
-		return fmt.Sprintf("\n%s%s\n%s%s\n%s%s\n\n", pad, wrapped, pad, attribution, pad, stats)
-	}
-
 	return fmt.Sprintf("\n%s%s\n%s%s\n\n", pad, wrapped, pad, attribution)
 }
 
@@ -252,11 +210,6 @@ func (m model) viewDissolve() string {
 	var attrStyled strings.Builder
 	for i, r := range attrRunes {
 		attrStyled.WriteString(m.dissolveChar(len(m.quote)+i, groupSize, r))
-	}
-
-	if m.dissolveFrame > 5 && m.statsEnabled {
-		stats := m.statsLine()
-		return fmt.Sprintf("\n\n%s%s\n\n", pad, stats)
 	}
 
 	return fmt.Sprintf("\n%s%s\n%s%s\n\n", pad, wrapped, pad, attrStyled.String())
@@ -294,23 +247,6 @@ func (m model) dissolveChar(idx, groupSize int, r rune) string {
 	default:
 		return " "
 	}
-}
-
-func (m model) statsLine() string {
-	elapsed := m.endTime.Sub(m.startTime).Seconds()
-	chars := len(m.quote)
-
-	var wpm int
-	if elapsed >= 1 {
-		wpm = int(float64(chars) / 5.0 / (elapsed / 60.0))
-	}
-
-	var accuracy int
-	if m.totalKeystrokes > 0 {
-		accuracy = int(float64(m.correctKeystrokes) / float64(m.totalKeystrokes) * 100)
-	}
-
-	return correctStyle.Render(fmt.Sprintf("%d wpm · %d%% accuracy", wpm, accuracy))
 }
 
 // softWrap wraps styled text at word boundaries based on the raw rune widths.
@@ -383,7 +319,6 @@ func main() {
 	fleetingFlag := flag.Bool("fleeting", false, "dissolve the quote into dust after completion")
 	quotesFlag := flag.String("quotes", "", "path to a custom quotes JSON file")
 	apiFlag := flag.String("api", "", "fetch a quote from an API endpoint (pass URL)")
-	statsFlag := flag.Bool("stats", false, "show WPM and accuracy after typing")
 	versionFlag := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -421,7 +356,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(initialModel(q, *fleetingFlag, *statsFlag))
+	p := tea.NewProgram(initialModel(q, *fleetingFlag))
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

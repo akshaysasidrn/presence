@@ -1,20 +1,20 @@
 # presence
 
+![demo](demo.gif)
+
 A typing test that doesn't care about your WPM.
 
-Just you, a quote, and the quiet hum of your terminal.
+## Philosophy
 
-Type the words. Notice the mistakes. Keep going anyway.
+There's no score. No leaderboard. No backspace.
 
-The obstacle is the way.
+You type. You make mistakes. You keep going.
+
+Mistakes stay - what's typed is typed. Like words already said.
+
+`--fleeting` dissolves the quote when you're done. Even the things you get right don't last.
 
 ## Run
-
-```bash
-go run .
-```
-
-Or build it and sit with the binary for a while:
 
 ```bash
 go build -o presence && ./presence
@@ -23,27 +23,25 @@ go build -o presence && ./presence
 ## Options
 
 ```
---random    pick a random quote instead of the daily one
---quotes    path to a custom quotes JSON file
---api       fetch a quote from an API endpoint (pass URL)
+--daily     same quote all day
 --fleeting  dissolve the quote into dust after completion
---version   print version and exit
+--quotes    path to a custom quotes JSON file
+--api       fetch a quote from a URL
+--version   print version
 ```
 
-Custom quotes file format:
+Bring your own quote:
 
 ```json
-[
-  {"text": "Your quote here.", "author": "You"}
-]
+[{"text": "The soul becomes dyed with the color of its thoughts.", "author": "Marcus Aurelius"}]
 ```
 
-## Controls
+Or fetch one:
 
-- **Type** — that's it, that's the app
-- **Backspace** — for when the ego intervenes
-- **Tab / Esc / Ctrl+C** — return to the world of distractions
+```bash
+./presence --api https://stoic.tekloon.net/stoic-quote
+```
 
 ## License
 
-MIT — be present with it however you like.
+MIT
