@@ -85,6 +85,7 @@ func randomQuote(quotes []quote) quote {
 }
 
 // apiResponse matches the Stoic Quote API response shape.
+// Usage: presence --api https://stoic.tekloon.net/stoic-quote
 type apiResponse struct {
 	Data struct {
 		Author string `json:"author"`
